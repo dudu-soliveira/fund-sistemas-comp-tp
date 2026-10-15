@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package ambulatorio;
+
+service AmbulatorioService {
+  rpc ProcuraMedico(ProcuraMedicoRequest) returns (ProcuraMedicoResponse);
+  rpc RegistraMedico(RegistraMedicoRequest) returns (RegistraMedicoResponse);
+  rpc ChamaPaciente(ChamaPacienteRequest) returns (ChamaPacienteResponse);
+  rpc Termino(TerminoRequest) returns (TerminoResponse);
+}
+
+message ProcuraMedicoRequest {
+  float id_paciente = 1; // tipo_ident
+}
+
+message ProcuraMedicoResponse {
+  string ip_consultorio = 1; // tipo_ender
+  uint32 porto = 2; // tipo_porto
+}
+
+message RegistraMedicoRequest {
+  float id_medico = 1; // tipo_ident
+  uint32 porto = 2; // tipo_porto
+}
+
+message RegistraMedicoResponse {
+  sint32 resultado = 1; // tipo?
+}
+
+message ChamaPacienteRequest {
+  float id_medico = 1; // tipo_ident
+}
+
+message ChamaPacienteResponse {
+  float id_paciente = 1; // tipo_ident
+}
+
+message TerminoRequest {}
+
+message TerminoResponse {
+  sint32 num_liberados = 1; // tipo?
+}
