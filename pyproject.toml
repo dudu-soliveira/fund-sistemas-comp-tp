@@ -6,11 +6,10 @@ authors = [
     { name = "dudu-soliveira", email = "eduardosoliveira2003@gmail.com" },
 ]
 requires-python = ">=3.8.10"
-dependencies = []
+dependencies = ["grpcio==1.70.0", "grpcio-tools==1.70.0"]
 
-[project.scripts]
-tp = "tp:main"
-
-[build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
-build-backend = "uv_build"
+[dependency-groups]
+dev = [
+    "grpc-stubs==1.53.0.6",
+    "mypy-protobuf==3.6.0",
+]
