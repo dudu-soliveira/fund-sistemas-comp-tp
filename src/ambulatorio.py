@@ -1,7 +1,7 @@
 import sys
 from concurrent import futures
 from threading import Condition, Event, Lock
-from typing import Optional, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 import grpc
 
@@ -14,7 +14,7 @@ tipo_ident = float
 tipo_ender = str
 
 
-def split_peer(addr_str: str) -> tuple[tipo_ender, tipo_porto]:
+def split_peer(addr_str: str) -> Tuple[tipo_ender, tipo_porto]:
     # Remove gRPC's transport prefix, if present.
     if addr_str.startswith(("ipv4:", "ipv6:")):
         addr_str = addr_str.split(":", 1)[1]
@@ -24,7 +24,7 @@ def split_peer(addr_str: str) -> tuple[tipo_ender, tipo_porto]:
     if address.startswith("[") and address.endswith("]"):
         address = address[1:-1]
 
-    return address, int(port)
+    return address, tipo_porto(port)
 
 
 class Consultorio:
@@ -39,7 +39,7 @@ class Consultorio:
 class RegistrosMedicos:
     mutex: Lock
     total: int
-    mp: dict[float, Consultorio]
+    mp: Dict[float, Consultorio]
 
     def __init__(self, total: int):
         self.mutex = Lock()
@@ -59,7 +59,7 @@ class RegistrosMedicos:
             return 0
 
     def get(self, id: tipo_ident) -> Consultorio:
-        return self.mp[id]
+        return self.mp.get(id, Consultorio(0, ""))
 
     def full(self) -> bool:
         return self.count == self.total
@@ -83,7 +83,7 @@ class Prontuario:
 
 class Fila:
     total: int
-    fila: list[Prontuario]
+    fila: List[Prontuario]
     count: int
     inicio: int
     fim: int
@@ -93,7 +93,7 @@ class Fila:
         self.fila = [Prontuario() for _ in range(total)]
         self.count = 0
         self.inicio = 0
-        self.fim = 0
+        self.fim = -1
 
     def pop(self) -> Prontuario:
         # Retorna um prontuario vazio se a fila estiver vazia (na pratica esse caso nunca ocorre)
@@ -131,6 +131,7 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
     parada: Event
     mutex: Lock
     cond: Condition
+    block: bool
 
     def __init__(self, total_pacientes: int, total_medicos: int, parada: Event):
         self.pacientes = Fila(total_pacientes)
@@ -140,11 +141,15 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
         self.parada = parada
         self.mutex = Lock()
         self.cond = Condition(self.mutex)
+        self.block = False
 
     def ProcuraMedico(
         self, request: ProcuraMedicoRequest, context
     ) -> ProcuraMedicoResponse:
         with self.mutex:
+            # Impedir que novas requisicoes sejam computadas durante o processo de termino
+            if self.block:
+                return ProcuraMedicoResponse(ip_consultorio="", porto=0)
             self.chamadas += 1
 
             id_paciente = request.id_paciente
@@ -154,10 +159,10 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             if self.pacientes.full():
                 self.chamadas -= 1
                 self.cond.notify()
-                return ProcuraMedicoResponse("", 0)
+                return ProcuraMedicoResponse(ip_consultorio="", porto=0)
 
             # Se existir pelo menos um medico esperando, preenchemos o prontuario
-            # do primeiro da filacom os dados do paciente e o notificamos
+            # do primeiro da fila com os dados do paciente e o notificamos
             if not self.medicos.empty():
                 prontuario = self.medicos.pop()
                 prontuario.id_paciente = id_paciente
@@ -186,30 +191,35 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             )
             self.chamadas -= 1
             self.cond.notify()
-            return ProcuraMedicoResponse(endereco, porto)
+            return ProcuraMedicoResponse(ip_consultorio=endereco, porto=porto)
 
     def RegistraMedico(
         self, request: RegistraMedicoRequest, context
     ) -> RegistraMedicoResponse:
         with self.mutex:
+            # Impedir que novas requisicoes sejam computadas durante o processo de termino
+            if self.block:
+                return RegistraMedicoResponse(resultado=-1)
             self.chamadas += 1
 
-        id_medico = request.id_medico
-        porto = request.porto
-        endereco = split_peer(context.peer())[0]
+            id_medico = request.id_medico
+            porto = request.porto
+            endereco = split_peer(context.peer())[0]
 
-        res = self.registros_medicos.set(id_medico, porto, endereco)
+            res = self.registros_medicos.set(id_medico, porto, endereco)
 
-        tstamp_msg(f"RM({id_medico:4.1f}) @ {endereco}:{porto} = {res}")
-        with self.mutex:
+            tstamp_msg(f"RM({id_medico:4.1f}) @ {endereco}:{porto} = {res}")
             self.chamadas -= 1
             self.cond.notify()
-        return RegistraMedicoResponse(res)
+        return RegistraMedicoResponse(resultado=res)
 
     def ChamaPaciente(
         self, request: ChamaPacienteRequest, context
     ) -> ChamaPacienteResponse:
         with self.mutex:
+            # Impedir que novas requisicoes sejam computadas durante o processo de termino
+            if self.block:
+                return ChamaPacienteResponse(id_paciente=0)
             self.chamadas += 1
 
             id_medico = request.id_medico
@@ -239,11 +249,12 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             tstamp_msg(f"CP({id_medico:4.1f}) -> P({id_paciente:4.1f})")
             self.chamadas -= 1
             self.cond.notify()
-            return ChamaPacienteResponse(id_paciente)
+            return ChamaPacienteResponse(id_paciente=id_paciente)
 
     def Termino(self, request: TerminoRequest, context) -> TerminoResponse:
         with self.mutex:
             tstamp_msg("TE")
+            self.block = True
 
             liberados = 0
 
@@ -266,15 +277,15 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             self.parada.set()
 
             tstamp_msg(f"TE -> {liberados}")
-            return TerminoResponse(liberados)
+            return TerminoResponse(num_liberados=liberados)
 
 
-def parse_args() -> tuple[int, int, tipo_porto]:
+def parse_args() -> Tuple[int, int, tipo_porto]:
     try:
         args = sys.argv
-        if len(args) != 3:
+        if len(args) != 4:
             raise
-        return (int(args[0]), int(args[1]), int(args[2]))
+        return (int(args[1]), int(args[2]), tipo_porto(args[3]))
     except:
         raise Exception(
             "Argumentos inválidos. Devem ser "
@@ -285,7 +296,9 @@ def parse_args() -> tuple[int, int, tipo_porto]:
 
 def serve(total_pacientes: int, total_medicos: int, porto: tipo_porto) -> None:
     parada = Event()
-    server = grpc.server(futures.ThreadPoolExecutor())
+    server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=max(total_pacientes, total_medicos) + 1)
+    )
     ambulatorio_pb2_grpc.add_AmbulatorioServiceServicer_to_server(
         AmbulatorioServicer(total_pacientes, total_medicos, parada), server
     )
@@ -293,7 +306,7 @@ def serve(total_pacientes: int, total_medicos: int, porto: tipo_porto) -> None:
     server.start()
 
     parada.wait()
-    server.stop()
+    server.stop(1)
 
 
 def main() -> None:
@@ -302,5 +315,5 @@ def main() -> None:
     serve(total_pacientes, total_medicos, porto)
 
 
-if __file__ == "__main__":
+if __name__ == "__main__":
     main()
