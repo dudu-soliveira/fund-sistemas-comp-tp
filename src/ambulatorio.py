@@ -246,6 +246,10 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
 
                 id_paciente = prontuario.id_paciente
 
+        if id_paciente != 0:
+            mysleep(0.1)
+
+        with self.mutex:
             tstamp_msg("ACPR(%4.1f) -> P(%4.1f)" % (id_medico, id_paciente))
             self.chamadas -= 1
             self.cond.notify()
