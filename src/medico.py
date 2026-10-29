@@ -17,14 +17,16 @@ tipo_ender = str
 tipo_tempo = float
 
 porta_aberta: Semaphore
+paciente_chegou: Semaphore
 consulta_completa: Semaphore
 id_paciente: tipo_ident
 problema: str
 
 
 def init_vars() -> None:
-    global porta_aberta, consulta_completa, id_paciente, problema
+    global porta_aberta, paciente_chegou, consulta_completa, id_paciente, problema
     porta_aberta = Semaphore(0)
+    paciente_chegou = Semaphore(0)
     consulta_completa = Semaphore(0)
     id_paciente = 0
     problema = ""
@@ -58,7 +60,7 @@ class Medico:
         self.porta = porta
 
     def rotina(self) -> None:
-        global porta_aberta, consulta_completa, id_paciente
+        global porta_aberta, paciente_chegou, consulta_completa, id_paciente
 
         while True:
             with self.amb.connect() as channel:
@@ -75,8 +77,12 @@ class Medico:
                 tstamp_msg("MT ")
                 exit()
 
+            # Abre a porta e espera o paciente chegar
             porta_aberta.release()
+            paciente_chegou.acquire()
             tstamp_msg("MAI(%4.1f)" % id_paciente)
+
+            # Apos o paciente chegar, espera o fim da consulta
             consulta_completa.acquire()
             tstamp_msg("MAF -> %d" % self.id)
 
@@ -97,18 +103,22 @@ class ConsultorioServicer(consultorio_pb2_grpc.ConsultorioServiceServicer):
         self.duracao = duracao
 
     def Consulta(self, request: ConsultaRequest, context) -> ConsultaResponse:
-        global porta_aberta, consulta_completa, id_paciente, problema
+        global porta_aberta, paciente_chegou, consulta_completa, id_paciente, problema
 
+        tstamp_msg("CI(%4.1f,%s)" % (request.id_paciente, request.problema))
+
+        # Espera a porta ser aberta
+        porta_aberta.acquire()
+
+        # Preenche os dados do paciente e sinaliza sua chegada
         id_paciente = request.id_paciente
         problema = request.problema
-        tstamp_msg("CI(%4.1f,%s)" % (id_paciente, problema))
-
-        porta_aberta.acquire()
+        paciente_chegou.release()
 
         mysleep(self.duracao)
 
-        consulta_completa.release()
         tstamp_msg("CR(%4.1f,%4.1f) -> %d" % (id_paciente, self.id, self.id))
+        consulta_completa.release()
         return ConsultaResponse(id_medico=self.id)
 
 
