@@ -37,26 +37,21 @@ class Consultorio:
 
 
 class RegistrosMedicos:
-    mutex: Lock
     total: int
     mp: Dict[float, Consultorio]
 
     def __init__(self, total: int):
-        self.mutex = Lock()
         self.total = total
         self.count = 0
         self.mp = dict()
 
     def set(self, id: tipo_ident, porto: tipo_porto, endereco: tipo_ender) -> int:
-        # Precisamos sincronizar para impedir que multiplos medicos sejam adicionados
-        # simultaneamente quando ja se tem (total - 1) medicos
-        with self.mutex:
-            if self.full() or self.mp.get(id) is not None:
-                return -1
+        if self.full() or self.mp.get(id) is not None:
+            return -1
 
-            self.mp[id] = Consultorio(porto, endereco)
-            self.count += 1
-            return 0
+        self.mp[id] = Consultorio(porto, endereco)
+        self.count += 1
+        return 0
 
     def get(self, id: tipo_ident) -> Consultorio:
         return self.mp.get(id, Consultorio(0, ""))
