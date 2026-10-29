@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-package ambulatorio;
-
 service AmbulatorioService {
   rpc ProcuraMedico(ProcuraMedicoRequest) returns (ProcuraMedicoResponse);
   rpc RegistraMedico(RegistraMedicoRequest) returns (RegistraMedicoResponse);
@@ -14,7 +12,7 @@ message ProcuraMedicoRequest {
 }
 
 message ProcuraMedicoResponse {
-  string ip_consultorio = 1; // tipo_ender
+  string endereco = 1; // tipo_ender
   uint32 porto = 2; // tipo_porto
 }
 

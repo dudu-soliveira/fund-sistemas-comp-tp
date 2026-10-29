@@ -20,16 +20,14 @@ porta_aberta: Semaphore
 consulta_completa: Semaphore
 id_paciente: tipo_ident
 problema: str
-resultado: int
 
 
 def init_vars() -> None:
-    global porta_aberta, consulta_completa, id_paciente, problema, resultado
+    global porta_aberta, consulta_completa, id_paciente, problema
     porta_aberta = Semaphore(0)
     consulta_completa = Semaphore(0)
     id_paciente = 0
     problema = ""
-    resultado = 0
 
 
 class Ambulatorio:
@@ -60,26 +58,27 @@ class Medico:
         self.porta = porta
 
     def rotina(self) -> None:
-        global porta_aberta, consulta_completa, resultado, id_paciente
+        global porta_aberta, consulta_completa, id_paciente
 
         while True:
             with self.amb.connect() as channel:
                 stub = AmbulatorioServiceStub(channel)
-                tstamp_msg("AMB")
+                tstamp_msg("MCPI")
 
                 req = ChamaPacienteRequest(id_medico=self.id)
                 res = stub.ChamaPaciente(req)
                 id_paciente = res.id_paciente
 
-                tstamp_msg(f"AMB -> {id_paciente:4.1f}")
+                tstamp_msg("MCPR -> %4.1f" % id_paciente)
 
             if id_paciente < 1:
+                tstamp_msg("MT ")
                 exit()
 
-            tstamp_msg(f"CP({id_paciente:4.1f})")
             porta_aberta.release()
+            tstamp_msg("MAI(%4.1f)" % id_paciente)
             consulta_completa.acquire()
-            tstamp_msg(f"CE -> {resultado}")
+            tstamp_msg("MAF -> %d" % self.id)
 
     def registraMedico(self) -> int:
         with self.amb.connect() as channel:
@@ -90,24 +89,27 @@ class Medico:
 
 
 class ConsultorioServicer(consultorio_pb2_grpc.ConsultorioServiceServicer):
+    id: tipo_ident
     duracao: tipo_tempo
 
-    def __init__(self, duracao: tipo_tempo) -> None:
+    def __init__(self, id: tipo_ident, duracao: tipo_tempo) -> None:
+        self.id = id
         self.duracao = duracao
 
     def Consulta(self, request: ConsultaRequest, context) -> ConsultaResponse:
         global porta_aberta, consulta_completa, id_paciente, problema
-        porta_aberta.acquire()
 
         id_paciente = request.id_paciente
         problema = request.problema
-        tstamp_msg(f"CM({id_paciente:4.1f},{problema})")
+        tstamp_msg("CI(%4.1f,%s)" % (id_paciente, problema))
+
+        porta_aberta.acquire()
+
         mysleep(self.duracao)
-        resultado = 0
 
         consulta_completa.release()
-        tstamp_msg(f"CM({id_paciente:4.1f}) -> {resultado}")
-        return ConsultaResponse(resultado=resultado)
+        tstamp_msg("CR(%4.1f,%4.1f) -> %d" % (id_paciente, self.id, self.id))
+        return ConsultaResponse(id_medico=self.id)
 
 
 def parse_args() -> Tuple[tipo_porto, tipo_ident, tipo_tempo, tipo_ender, tipo_porto]:
@@ -131,10 +133,10 @@ def parse_args() -> Tuple[tipo_porto, tipo_ident, tipo_tempo, tipo_ender, tipo_p
         )
 
 
-def serve(duracao: tipo_tempo, porta: tipo_porto) -> grpc.Server:
+def serve(id: tipo_ident, duracao: tipo_tempo, porta: tipo_porto) -> grpc.Server:
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     consultorio_pb2_grpc.add_ConsultorioServiceServicer_to_server(
-        ConsultorioServicer(duracao), server
+        ConsultorioServicer(id, duracao), server
     )
     server.add_insecure_port(f"[::]:{porta}")
     server.start()
@@ -143,12 +145,12 @@ def serve(duracao: tipo_tempo, porta: tipo_porto) -> grpc.Server:
 
 def main() -> None:
     (porta, id, duracao, endereco_amb, porta_amb) = parse_args()
-    tstamp_msg(f"SC({id:4.1f}) x {duracao:3.1f} @ {porta}")
+    tstamp_msg("MI(%4.1f) x %3.1f @ %d" % (id, duracao, porta))
     init_vars()
     amb = Ambulatorio(endereco_amb, porta_amb)
     medico = Medico(amb, id, porta)
 
-    server = serve(duracao, porta)
+    server = serve(id, duracao, porta)
     resultado = medico.registraMedico()
     if resultado == -1:
         server.stop(1)

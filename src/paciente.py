@@ -59,9 +59,9 @@ class Paciente:
 
             req = ProcuraMedicoRequest(id_paciente=self.id)
             res = stub.ProcuraMedico(req)
-            end_consultorio = res.ip_consultorio
+            end_consultorio = res.endereco
             porta_consultorio = res.porto
-            tstamp_msg(f"CM({end_consultorio},{porta_consultorio})")
+            tstamp_msg("PPMR(%s:%d)" % (end_consultorio, porta_consultorio))
 
             if porta_consultorio == 0:
                 return False
@@ -75,13 +75,13 @@ class Paciente:
 
             req = ConsultaRequest(id_paciente=self.id, problema=self.problema)
             res = stub.Consulta(req)
-            resultado = res.resultado
-            tstamp_msg(f"CT -> {resultado}")
+            resultado = res.id_medico
+            tstamp_msg("OT -> %4.1f" % resultado)
 
 
 def main() -> None:
     (id, problema, end_amb, porta_amb) = parse_args()
-    tstamp_msg(f"P({id:4.1f},{problema})")
+    tstamp_msg("PI(%4.1f,%s)" % (id, problema))
 
     ambulatorio = Server(end_amb, porta_amb)
     paciente = Paciente(id, problema, ambulatorio)

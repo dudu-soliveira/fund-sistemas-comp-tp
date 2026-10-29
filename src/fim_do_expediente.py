@@ -45,12 +45,12 @@ class Server:
 
 def main() -> None:
     (endereco, porta) = parse_args()
-    tstamp_msg(f"FE({endereco},{porta})")
+    tstamp_msg("FE(%s,%d)" % (endereco, porta))
 
     ambulatorio = Server(endereco, porta)
 
     num_liberados = ambulatorio.connect()
-    tstamp_msg(f"FE -> {num_liberados}")
+    tstamp_msg("FE -> %d" % num_liberados)
 
 
 if __name__ == "__main__":

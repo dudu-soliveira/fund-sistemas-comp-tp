@@ -10,5 +10,5 @@ message ConsultaRequest {
 }
 
 message ConsultaResponse {
-  uint32 resultado = 1; // tipo?
+  float id_medico = 1; // tipo_ident
 }

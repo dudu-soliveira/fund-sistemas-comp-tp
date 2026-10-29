@@ -125,7 +125,8 @@ class Fila:
 
 
 class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
-    prontuarios: Fila
+    pacientes: Fila
+    medicos: Fila
     registros_medicos: RegistrosMedicos
     chamadas: int
     parada: Event
@@ -149,17 +150,17 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
         with self.mutex:
             # Impedir que novas requisicoes sejam computadas durante o processo de termino
             if self.block:
-                return ProcuraMedicoResponse(ip_consultorio="", porto=0)
+                return ProcuraMedicoResponse(endereco="", porto=0)
             self.chamadas += 1
 
             id_paciente = request.id_paciente
-            tstamp_msg(f"PM({id_paciente:4.1f})")
+            tstamp_msg("APMI(%4.1f)" % id_paciente)
 
             # Se a fila de pacientes estiver cheia, retorna um endereco vazio
             if self.pacientes.full():
                 self.chamadas -= 1
                 self.cond.notify()
-                return ProcuraMedicoResponse(ip_consultorio="", porto=0)
+                return ProcuraMedicoResponse(endereco="", porto=0)
 
             # Se existir pelo menos um medico esperando, preenchemos o prontuario
             # do primeiro da fila com os dados do paciente e o notificamos
@@ -176,7 +177,7 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
                 prontuario = Prontuario(self.mutex, None, id_paciente)
                 self.pacientes.push(prontuario)
 
-                tstamp_msg(f"PM({id_paciente:4.1f}) ESPERA")
+                tstamp_msg("APME(%4.1f) ESPERA" % id_paciente)
                 while prontuario.id_medico is None:
                     prontuario.cond.wait()
 
@@ -187,11 +188,12 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             porto = medico.porto
 
             tstamp_msg(
-                f"PM({id_paciente:4.1f}) -> M({id_medico:4.1f}) @ {endereco}:{porto}"
+                "APMR(%4.1f) -> M(%4.1f) @ %s:%d"
+                % (id_paciente, id_medico, endereco, porto)
             )
             self.chamadas -= 1
             self.cond.notify()
-            return ProcuraMedicoResponse(ip_consultorio=endereco, porto=porto)
+            return ProcuraMedicoResponse(endereco=endereco, porto=porto)
 
     def RegistraMedico(
         self, request: RegistraMedicoRequest, context
@@ -208,7 +210,7 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
 
             res = self.registros_medicos.set(id_medico, porto, endereco)
 
-            tstamp_msg(f"RM({id_medico:4.1f}) @ {endereco}:{porto} = {res}")
+            tstamp_msg("ARM(%4.1f) @ %s:%d = %d" % (id_medico, endereco, porto, res))
             self.chamadas -= 1
             self.cond.notify()
         return RegistraMedicoResponse(resultado=res)
@@ -223,7 +225,7 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             self.chamadas += 1
 
             id_medico = request.id_medico
-            tstamp_msg(f"CP({id_medico:4.1f})")
+            tstamp_msg("ACPI(%4.1f)" % id_medico)
 
             # Se existir ao menos um paciente esperando, removemos o prontuario do primeiro e preenchemos os
             # dados do medico nele, notificamos o paciente e retornamos os seus dados ao medico
@@ -240,20 +242,20 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
                 prontuario = Prontuario(self.mutex, id_medico, None)
                 self.medicos.push(prontuario)
 
-                tstamp_msg(f"CP({id_medico:4.1f}) ESPERA")
+                tstamp_msg("ACPE(%4.1f)" % id_medico)
                 while prontuario.id_paciente is None:
                     prontuario.cond.wait()
 
                 id_paciente = prontuario.id_paciente
 
-            tstamp_msg(f"CP({id_medico:4.1f}) -> P({id_paciente:4.1f})")
+            tstamp_msg("ACPR(%4.1f) -> P(%4.1f)" % (id_medico, id_paciente))
             self.chamadas -= 1
             self.cond.notify()
             return ChamaPacienteResponse(id_paciente=id_paciente)
 
     def Termino(self, request: TerminoRequest, context) -> TerminoResponse:
         with self.mutex:
-            tstamp_msg("TE")
+            tstamp_msg("ATEI")
             self.block = True
 
             liberados = 0
@@ -276,7 +278,7 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             mysleep(1)
             self.parada.set()
 
-            tstamp_msg(f"TE -> {liberados}")
+            tstamp_msg("ATER -> %d" % liberados)
             return TerminoResponse(num_liberados=liberados)
 
 
@@ -311,7 +313,7 @@ def serve(total_pacientes: int, total_medicos: int, porto: tipo_porto) -> None:
 
 def main() -> None:
     (total_pacientes, total_medicos, porto) = parse_args()
-    tstamp_msg(f"AMB({total_pacientes},{total_medicos})@{porto}")
+    tstamp_msg("AI(%d,%d)@%d" % (total_pacientes, total_medicos, porto))
     serve(total_pacientes, total_medicos, porto)
 
 
