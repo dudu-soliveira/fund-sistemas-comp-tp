@@ -155,6 +155,9 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
             if self.pacientes.full():
                 self.chamadas -= 1
                 self.cond.notify()
+                tstamp_msg(
+                    "APMR(%4.1f) -> M(%4.1f) @ %s:%d" % (id_paciente, 0.0, "", 0)
+                )
                 return ProcuraMedicoResponse(endereco="", porto=0)
 
             # Se existir pelo menos um medico esperando, preenchemos o prontuario
