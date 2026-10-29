@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Gera o ZIP de entrega com os sete arquivos exigidos no enunciado."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
-
 
 src = Path(__file__).resolve().parent / "src"
 destino = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("entrega.zip")
@@ -24,17 +23,21 @@ faltando = [nome for nome in arquivos if not (src / nome).is_file()]
 if faltando:
     sys.exit(f"Arquivos ausentes em {src}: {', '.join(faltando)}")
 
+# Retira apenas os alvos e a opção gerados pelo plugin mypy-protobuf.
+makefile = (src / "Makefile").read_text()
+substituicoes = {
+    "stubs: ambulatorio_pb2_grpc.py consultorio_pb2_grpc.py \\\n\t\tambulatorio_pb2_grpc.pyi consultorio_pb2_grpc.pyi": "stubs: ambulatorio_pb2_grpc.py consultorio_pb2_grpc.py",
+    "%_pb2.py %_pb2.pyi %_pb2_grpc.py %_pb2_grpc.pyi &: %.proto": "%_pb2.py %_pb2.pyi %_pb2_grpc.py &: %.proto",
+    "\t\t--mypy_grpc_out=. \\\n": "",
+}
+for original, substituto in substituicoes.items():
+    if makefile.count(original) != 1:
+        sys.exit("Não foi possível adaptar o Makefile local para a entrega.")
+    makefile = makefile.replace(original, substituto)
+
 with ZipFile(destino, "w", compression=ZIP_DEFLATED) as zip_file:
     for origem, nome_no_zip in arquivos.items():
         zip_file.write(src / origem, nome_no_zip)
-    # O Makefile de entrega não exige o plugin de tipagem usado localmente.
-    zip_file.writestr("Makefile", """.PHONY: stubs clean
-
-stubs:
-	python3 -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. ambulatorio.proto consultorio.proto
-
-clean:
-	rm -f *_pb2.py *_pb2_grpc.py *_pb2.pyi *_pb2_grpc.pyi
-""")
+    zip_file.writestr("Makefile", makefile)
 
 print(f"Entrega gerada: {destino}")
