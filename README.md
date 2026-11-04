@@ -45,14 +45,14 @@ A manipulação de prontuários das filas de pacientes e médicos deve ser feita
 
 No procedimento procura por um médico, se fila de espera estiver cheia, o procedimento retorna imediatamente com um identificador de médico igual a zero, um string tipo_ender vazio e um inteiro tipo_porto igual a zero. Caso contrário, se houver um médico disponível, o método deve remover o prontuário da fila de médicos, preencher o campo com o identificador do paciente, sinalizar para que o médico que criou o prontuário possa prosseguir e retornar com o endereço do servidor e da que idenficam o consultório. Por outro lado, se não houver um médico disponível, o paciente deve criar um prontuário, preencher seu identifidador, inseri-lo na fila de pacientes e aguardar a notificação de que ele prosseguir. Quando isso acontecer, o método deve retornar com o identificador do servidor e a porta do consultório do médico. Essa informação poderá ser obtida no ambulatório, com base no identificador do médico que terá sido preenchido no prontuário.
 
-O procedimento registra médico serve para registrar as informações sobre o médico que serão necessárias: seu identificador e o número da porta onde se encontra o seu consultório. Se o número de médicos definido na execução já tiver sido alcançado, a função retorna imediatamente com -1. Caso contrário, as informações fornecidas, junto com o endereço do servidor onde o médico se encontra, devem ser armazenados em um diretório dos médicos, indexados pelo identificador do médico e retorna 0.
+O procedimento registra médico serve para registrar as informações sobre o médico que serão necessárias: seu identificador e o número da porta onde se encontra o seu consultório. Se o número de médicos definido na execução já tiver sido alcançado, a função retorna imediatamente com -1. Caso contrário, as informações fornecidas, junto com o endereço do servidor onde o médico se encontra, devem ser armazenados em um diretório dos médicos, indexados pelo identificador do médico e retorna 0. 
 
 No procedimento chamada de um paciente, se houver algum prontuário na fila de pacientes, o médico remove o primeiro prontuário da fila, preenche o seu identifiador nele, notifica o paciente que aguarda o prontuário ser completado e retorna com o identificador do paciente. Caso não haja pacientes esperando na fila, ele cria um prontuário com a sua identificação, coloca-o na fila de médicos e vai esperar pela notificação de que pode prosseguir, quando ela retorna com o identificador do paciente obtido do prontuário. Exceto no final do expediente, quando ele estiver pronto para retornar ele deve demorar 0,1 segundo antes de fazê-lo (vai beber uma água usando um sleep antes de começar a próximar consulta ).
 
-No procedimento término do expediente, se há médicos esperando por pacientes, seus prontuários devem ser preenchidos com valor zero no campo do identificador do paciente e eles devem ser notificados para que possam retornar. Se há pacientes esperando, seus prontuários devem ser preenchidos com zero on identificador do médico e eles devem ser notificados para que possam prosseguir. Só depois que todos os pacientes/médicos tenham retornado (nenhum outro procedimento esteja ainda em execução) o processo pode retornar com o número de médicos/pacientes que foram notificados e o servidor pode realmente terminar. Isto é, o próprio procedimento não pode causar a terminação do processo, caso contrário não seria possível retornar um valor. Para isso é preciso usar uma solução específica para terminar o servidor depois do retorno do procedimento, o que será explicado mais à frente.
+No procedimento término do expediente, se há médicos esperando por pacientes, seus prontuários devem ser preenchidos com valor zero no campo do identificador do paciente e eles devem ser notificados para que possam retornar. Se há pacientes esperando, seus prontuários devem ser preenchidos com zero on identificador do médico e eles devem ser notificados para que possam prosseguir. Só depois que todos os pacientes/médicos tenham retornado (nenhum outro procedimento esteja ainda em execução) o processo pode retornar com o número de médicos/pacientes que foram notificados e o servidor pode realmente terminar. Isto é, o próprio procedimento não pode causar a terminação do processo, caso contrário não seria possível retornar um valor. Para isso é preciso usar uma solução específica para terminar o servidor depois do retorno do procedimento, o que será explicado mais à frente. 
 Mensagens escritas no ambulatório
 
-    início da execução:
+    início da execução: 
         "AI(%d,%d)@%d" % (número de cadeiras, número de medicos, porto usado pelo servidor)
     procura por um médico:
         "APMI(%4.1f)" % (identificação do paciente) - ao iniciar
@@ -60,7 +60,7 @@ Mensagens escritas no ambulatório
         "APMR(%4.1f) -> M(%4.1f) @ %s:%d" % (identificação do paciente, identificação do médico, endereço do servidor de consultório, porta) - imediatamente antes de retornar
     registra médico:
         "ARM(%4.1f) @ %s:%d = %d" % (identificação do médico, endereço do servidor de consultório, porta, valor de retorno) - antes de retornar
-    chamada de um paciente:
+    chamada de um paciente: 
         "ACPI(%4.1f)" % (identificação do médico) - ao iniciar
         "ACPE(%4.1f)" % (identificação do médico) - imediatamente antes de parar para aguardar a chegada de um paciente
         "ACPR(%4.1f) -> P(%4.1f)" % (identificação do médico, identificação do paciente) - imediatamente antes de retornar
@@ -76,34 +76,35 @@ O servidor de consultório será um processo que implementa o próprio médico. 
 
 Funcionamento do processo do médico
 
-O processo do médico será iniciado com cinco argumentos de linha de comando: o número da porta (tipo_porto) onde o servidor do consultório executará, um identificador do médico (tipo_ident), o tempo que ele gasta em cada consulta (tipo_tempo), o endereço (tipo_ender) e o número da porta (tipo_porto) onde ele encontrará o ambulatório.
+O processo do médico será iniciado com cinco argumentos de linha de comando: o número da porta (tipo_porto) onde o servidor do consultório executará, um identificador do médico (tipo_ident), o tempo que ele gasta em cada consulta (tipo_tempo), o endereço (tipo_ender) e o número da porta (tipo_porto) onde ele encontrará o ambulatório. 
 
-O médico deve inicialmente disparar o servidor do consultório na porta fornecida como argumento e se registrar no ambulatório informando seu identificador e o número da porta do consultório.
+O médico deve inicialmente disparar o servidor do consultório na porta fornecida como argumento e se registrar no ambulatório informando seu identificador e o número da porta do consultório. o processo deve terminar sua execução 
 
-Depois disso ele deve executar sua rotina diária, que implica em fazer a chamada de um paciente no ambulatório, abrir a sala para o paciente, esperar que o paciente execute o método consulta no servidor local, receber dele o identificador do paciente e a descrição do problema dele, escrever na sua saída padrão essas duas informações, executar um sleep pelo tempo da consulta e liberar o cliente depois disso, passando seu identificador para o retorno da chamada remota do paciente (consulta) retornando ao ambulatório para chamar outro paciente.
+Depois disso ele deve executar sua rotina diária, que implica em fazer a chamada de um paciente no ambulatório, esperar que o paciente execute o método consulta no servidor local, abrir a sala para o paciente, receber dele o seu identificador e a descrição do problema do paciente, escrever na sua saída padrão essas duas informações, executar um sleep pelo tempo da consulta e liberar o cliente depois disso, retornando ao ambulatório para chamar outro paciente.
 
 Esse comportamento implica em dois pontos de sincronização entre a thread do servidor de consultório (que executa o RPC consulta) e a thread principal (que executa o laço do médico):
 
-    Ao receber uma chamada de consulta, a thread do servidor deve esperar até que a thread principal sinalize que está pronta para atender — isto é, que o médico “abriu a porta”. Só então a thread do servidor pode registrar os dados do paciente e prosseguir com a consulta.
-    A thread principal, após sinalizar que está pronta, deve esperar até que a thread do servidor sinalize que a consulta terminou — ou seja, que o médico pode liberar o paciente e voltar ao ambulatório para chamar o próximo.
+    Ao receber uma chamada de consulta, a thread do servidor deve esperar até que a thread principal sinalize que está pronta para atender — isto é, que o médico “abriu a porta”. Só então a thread do médico pode registrar os dados do paciente e prosseguir com a consulta.
+    A thread principal (o médico), após sinalizar que está pronta, deve esperar até que a consulta termine com o sleep — só depois disso o médico pode liberar o paciente e voltar ao ambulatório para chamar o próximo.
 
 É sua tarefa determinar como implementar esses dois pontos de sincronização. Note que os dados recebidos pela thread do servidor (identificador e descrição do problema do paciente) precisam estar disponíveis para a thread principal após o primeiro ponto de sincronização. A forma como essa transferência é feita fica a seu critério.
 
-Caso a chamada de um paciente retorne com um identificador menor que um o médico deve terminar sua execução (incluindo o servidor do consultório).
+Caso o registro do médico retorne com -1 ou a chamada de um paciente retorne com um identificador menor que um o médico deve terminar sua execução (incluindo o servidor do consultório) depois de escrever a mensagem MI ou MCPR, conforme o caso.
 Mensagens escritas pelo médico/consultório
 
-    início da execução:
-        "MI(%4.1f) x %3.1f @ %d" % (identificador do médico, tempo de atendimento, porto usado pelo servidor do consultório)
+    início da execução: 
+        "MI(%4.1f) x %3.1f @ %d = %d" % (identificador do médico, tempo de atendimento, porto usado pelo servidor do consultório, valor de retorno do registro do médico)
     consulta:
-        "CI(%4.1f,%s)" % (identificação do paciente, descrição do seu problema) - imediatamente ao iniciar o processamento da RPC da consulta
-        "CR(%4.1f,%4.1f) -> %d" % (identificação do pacientei, identificação do médico, valor de retorno) - ao final da consulta, imediatamente antes de retornar
-    execução do médico:
+        "CI(%4.1f,%s)" % (identificação do paciente, descrição do seu problema) - imediatamente ao iniciar o processamento da RPC da consulta 
+        "CR(%4.1f,%4.1f)" % (identificação do paciente, identificação do médico) - ao final da consulta, imediatamente antes de retornar
+    execução do médico: 
         "MCPI" - imediatamente antes de executar a chamada de um paciente (o médico já escreveu seu identificador ao iniciar)
-        "MCPR -> %4.1f" % (identificador do paciente) - imediatamente ao retornar da chamada de um paciente
-        "MAI(%4.1f)" % (identificador do paciente) - início do atendimento, depois da chegada do paciente a consulta, antes de suspender o processo do médico
-        "MAF -> %d" % (valor de retorno) - ao final do atendimento, depois de liberar o paciente da sincronização na consulta
+        "MCPR -> %4.1f" % (identificador do paciente) - imediatamente ao retornar da chamada de um paciente 
+        "MAI(%4.1f,%s)" % (identificador do paciente, descrição do seu problema) - início do atendimento, depois da chegada do paciente a consulta, antes de suspender o processo do médico
+        "MAF" - ao final do atendimento, depois de liberar o paciente da sincronização na consulta
         "MT " - ao final do expediente, se recebe a mensagem de final no ambulatório
 
+ 
 O cliente (o paciente)
 
 O processo do paciente será um cliente de RPC padrão. Ele deve ser iniciado com quatro parâmetros: seu identificador (tipo_ident), um string descrevendo seu problema, o endereço (tipo_ender) e o número da porta (tipo_porto) onde ele encontrará o ambulatório. O cliente deve então executar o procedimento procura por um médico, que vai lhe devolver a localização de um consultório. Se o valor do porto for igual a zero, o cliente deve terminar. Caso contrário, ele deve executar o procedimento consulta com o servidor identificado, fornecendo seu identificador e o string com seu problema. Quando o procedimento retornar o paciente termina sua execução.
@@ -111,7 +112,7 @@ Mensagens escritas pelo paciente
 
 Neste caso, há apenas uma sequência de mensagens:
 
-    execução do paciente:
+    execução do paciente: 
         "PI(%4.1f,%s)" % (identificador do paciente, descrição do seu problema) - ao iniciar
         "PPMR(%s:%d)" % (endereço do servidor de consultório, porto) - imediatamente ao retornar de procura por um médico
         "OT -> %4.1f" % (valor de retorno (identificador do médico)) - imediatamente ao retornar da consulta, antes de terminar
@@ -123,8 +124,8 @@ Mensagens escritas pelo paciente
 
 Neste caso, há apenas duas mensagens:
 
-    execução do paciente:
-        "FE(%s,%d)" % (endereço do servidor, número da porta usada) - ao iniciar
+    execução do paciente: 
+        "FE(%s,%d)" % (endereço do servidor, número da porta usada) - ao iniciar 
         "FE -> %d" % (valor de retorno) — imediatamente ao retornar do procedimento término, antes de terminar
 
 Requisitos não funcionais:
@@ -168,7 +169,7 @@ identificação do endereço de um cliente
 No registro do médico, o médico informa a porta do consultório, mas o próprio servidor de ambulatório pode identifiar diretamente o endereço da máquina onde está o médico, através do contexto da chamada de RPC que o médico executa. Para isso, basta que seja chamada a função peer() do parâmetro de contexto do procedimento. Por exemplo, para o procedimento say_hello mostrado nos exemplos, seu início seria:
 
 def say_hello(self, request, context):
-client_addr=context.peer()
+    client_addr=context.peer()
 
 O formato retornado por context.peer() é definido na documentação do gRPC, mas basicamente é um string com três partes separadas por "dois pontos": a identificação do tipo de endereço (IPv4 ou IPv6), o endereço propriamente dito e o número do porto. Se o endereço for IPv6, ele mesmo contém um ou mais sinais de dois pontos e pode ser certado por colchetes. Para lidar com esses detalhes, a função a seguir pode ser usada para fazer o processamento dessa string para retirar corretamente o string do endereço e o número do porto:
 
@@ -188,4 +189,4 @@ Desligar um servidor através de um RPC
 
 Como mencionado anteriormente, fazer um servidor de RPC parar de funcionar usando uma chamada de procedimento dele mesmo tem uma pegadinha: não basta chamar um exit() enquanto se executa o código do procedimento, ou ele vai terminar a execução antes de retornar da chamada, deixando o cliente sem resposta. E normalmente a gente só pode escrever código dentro das chamadas, já que não devemos alterar o código do stub. Cada framework de RPC tem uma solução diferente para esse problema e a solução do gRPC é bastante elegante, exigindo pouco código. Usa-se a geração de um evento dentro do código da RPC, que é capturado pelo servidor. Pode parecer complicado, mas o código para se fazer isso já está descrito no stackexchange (https://stackoverflow.com/questions/59262044/how-to-shutdown-grpc-server-from-grpc-client-in-python) . Um ponto importante é que pode ser necessário esperar um tempo para o procedimento que foi disparado pelo cliente realmente terminar. Esperar um segundo deve ser suficiente nesse caso.
 
-Para garantir que o servidor não termine antes que todos os procedimentos em execução tenham retornado, cada procedimento do ambulatório, exceto o de terminação, deve incrementar um contador global de chamadas ativas logo ao iniciar, e decrementá-lo imediatamente antes de retornar. O procedimento término deve, após notificar médicos e pacientes em espera, aguardar até que esse contador chegue a zero antes de sinalizar o encerramento do servidor. Um único mutex protegendo o contador e uma variável de condição associada a ele são suficientes para isso — ou, alternativamente, o mesmo mutex que protege as filas pode ser reutilizado para esse fim, desde que o contador seja verificado dentro da mesma seção crítica.
+Para garantir que o servidor não termine antes que todos os procedimentos em execução tenham retornado, cada procedimento do ambulatório, exceto o de terminação, deve incrementar um contador global de chamadas ativas logo ao iniciar, e decrementá-lo imediatamente antes de retornar. O procedimento término deve, após notificar médicos e pacientes em espera, aguardar até que esse contador chegue a zero antes de sinalizar o encerramento do servidor. Um único mutex protegendo o contador e uma variável de condição associada a ele são suficientes para isso — ou, alternativamente, o mesmo mutex que protege as filas pode ser reutilizado para esse fim, desde que o contador seja verificado dentro da mesma seção crítica. 
