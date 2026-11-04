@@ -1,4 +1,4 @@
-"""Run each case and compare log messages in their original order."""
+"""Compare logs, allowing reordering within each expected timestamp."""
 
 from difflib import unified_diff
 from pathlib import Path
@@ -13,15 +13,36 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def messages(path):
-    lines = []
+def message_groups(path):
+    groups = []
+    previous_timestamp = None
     for line in path.read_text().splitlines():
+        match = re.match(r"^\s*(\d+\.\d+):", line)
+        timestamp = match.group(1) if match else None
         line = re.sub(r"^\s*\d+\.\d+:\s*", "", line).strip()
         if line.startswith("mytime started at "):
             line = "mytime started"
         line = re.sub(r"%5[Bb]::1%5[Dd]|\[::1\]|127\.0\.0\.1|(?<!\w)::1", "localhost", line)
-        lines.append(line + "\n")
-    return lines
+        if not groups or timestamp is None or timestamp != previous_timestamp:
+            groups.append([])
+        groups[-1].append(line + "\n")
+        previous_timestamp = timestamp
+    return groups
+
+
+def compare_messages(expected, actual):
+    expected_lines = []
+    actual_lines = [line for group in message_groups(actual) for line in group]
+    offset = 0
+    # Actual timestamps may drift. Use only the example's timestamps to group
+    # concurrent messages, keeping the order between different groups.
+    for group in message_groups(expected):
+        expected_lines.extend(sorted(group))
+        end = offset + len(group)
+        actual_lines[offset:end] = sorted(actual_lines[offset:end])
+        offset = end
+    return list(unified_diff(expected_lines, actual_lines,
+                             fromfile=str(expected), tofile="actual/" + actual.name))
 
 
 def run_case(case):
@@ -57,8 +78,7 @@ def run_case(case):
                 print("Missing output: " + expected.name)
                 passed = False
                 continue
-            diff = list(unified_diff(messages(expected), messages(actual),
-                                     fromfile=str(expected), tofile="actual/" + expected.name))
+            diff = compare_messages(expected, actual)
             if diff:
                 print("".join(diff), end="")
                 passed = False
