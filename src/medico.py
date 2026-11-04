@@ -73,10 +73,16 @@ class Medico:
                 tstamp_msg("MCPI")
 
                 req = ChamaPacienteRequest(id_medico=self.id)
-                res = stub.ChamaPaciente(req)
-                id_paciente = res.id_paciente
 
-                tstamp_msg("MCPR -> %4.1f" % id_paciente)
+                # O servidor pode fechar enquanto o medico esta dormindo, quando esse for
+                # o caso, um erro sera lancado ao tentar conectar-se ao ambulatorio
+                try:
+                    res = stub.ChamaPaciente(req)
+                    id_paciente = res.id_paciente
+                    tstamp_msg("MCPR -> %4.1f" % id_paciente)
+                except grpc.RpcError:
+                    tstamp_msg("MT ")
+                    exit()
 
             # Se o paciente for invalido, finaliza a execucao
             if id_paciente < 1:
@@ -152,7 +158,7 @@ def parse_args() -> Tuple[tipo_porto, tipo_ident, tipo_tempo, tipo_ender, tipo_p
 
 
 def serve(id: tipo_ident, porta: tipo_porto) -> grpc.Server:
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
     consultorio_pb2_grpc.add_ConsultorioServiceServicer_to_server(
         ConsultorioServicer(id), server
     )
