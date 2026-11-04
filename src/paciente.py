@@ -76,7 +76,7 @@ class Paciente:
             req = ConsultaRequest(id_paciente=self.id, problema=self.problema)
             res = stub.Consulta(req)
             resultado = res.id_medico
-            tstamp_msg("OT -> %4.1f" % resultado)
+            tstamp_msg("PT -> %4.1f" % resultado)
 
 
 def main() -> None:

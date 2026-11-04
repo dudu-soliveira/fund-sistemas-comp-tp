@@ -56,7 +56,7 @@ Mensagens escritas no ambulatório
         "AI(%d,%d)@%d" % (número de cadeiras, número de medicos, porto usado pelo servidor)
     procura por um médico:
         "APMI(%4.1f)" % (identificação do paciente) - ao iniciar
-        "APME(%4.1f) ESPERA" % (identificação do paciente) - imediatamente antes de parar para aguardar a notificação de um médico
+        "APME(%4.1f)" % (identificação do paciente) - imediatamente antes de parar para aguardar a notificação de um médico
         "APMR(%4.1f) -> M(%4.1f) @ %s:%d" % (identificação do paciente, identificação do médico, endereço do servidor de consultório, porta) - imediatamente antes de retornar
     registra médico:
         "ARM(%4.1f) @ %s:%d = %d" % (identificação do médico, endereço do servidor de consultório, porta, valor de retorno) - antes de retornar
@@ -115,7 +115,7 @@ Neste caso, há apenas uma sequência de mensagens:
     execução do paciente: 
         "PI(%4.1f,%s)" % (identificador do paciente, descrição do seu problema) - ao iniciar
         "PPMR(%s:%d)" % (endereço do servidor de consultório, porto) - imediatamente ao retornar de procura por um médico
-        "OT -> %4.1f" % (valor de retorno (identificador do médico)) - imediatamente ao retornar da consulta, antes de terminar
+        "PT -> %4.1f" % (valor de retorno (identificador do médico)) - imediatamente ao retornar da consulta, antes de terminar
 
 O fim do expediente
 

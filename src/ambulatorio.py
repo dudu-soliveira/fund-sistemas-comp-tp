@@ -175,7 +175,7 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
                 prontuario = Prontuario(self.mutex, None, id_paciente)
                 self.pacientes.push(prontuario)
 
-                tstamp_msg("APME(%4.1f) ESPERA" % id_paciente)
+                tstamp_msg("APME(%4.1f)" % id_paciente)
                 while prontuario.id_medico is None:
                     prontuario.cond.wait()
 
