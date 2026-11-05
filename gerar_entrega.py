@@ -14,7 +14,7 @@ arquivos = {
     "paciente.py": "paciente.py",
     "medico.py": "medico.py",
     "ambulatorio.py": "ambulatorio.py",
-    "fim_do_expediente.py": "fim_de_expediente.py",
+    "fim_do_expediente.py": "fim_do_expediente.py",
 }
 
 if len(sys.argv) > 2:
