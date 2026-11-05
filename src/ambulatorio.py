@@ -246,6 +246,8 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
 
                 id_paciente = prontuario.id_paciente
 
+        # Se o paciente for valido, faz uma pausa para tomar cafe
+        # Liberamos o mutex para permitir que o paciente ja se direcione ao consultorio
         if id_paciente != 0:
             mysleep(0.1)
 
@@ -257,23 +259,28 @@ class AmbulatorioServicer(ambulatorio_pb2_grpc.AmbulatorioServiceServicer):
 
     def Termino(self, request: TerminoRequest, context) -> TerminoResponse:
         with self.mutex:
+            # Sinalizamos o inicio do termino para impedir que novas chamadas
+            # sejam processadas enquanto finalizamos o servidor
             tstamp_msg("ATEI")
             self.block = True
 
             liberados = 0
 
+            # Liberamos todos os medicos
             while not self.medicos.empty():
                 prontuario = self.medicos.pop()
                 prontuario.id_paciente = 0
                 prontuario.cond.notify()
                 liberados += 1
 
+            # Liberamos todos os pacientes
             while not self.pacientes.empty():
                 prontuario = self.pacientes.pop()
                 prontuario.id_medico = 0
                 prontuario.cond.notify()
                 liberados -= 1
 
+            # Esperamos que todos os clientes finalizem antes de terminar o servidor
             while self.chamadas > 0:
                 self.cond.wait()
 
@@ -299,10 +306,13 @@ def parse_args() -> Tuple[int, int, tipo_porto]:
 
 
 def serve(total_pacientes: int, total_medicos: int, porto: tipo_porto) -> None:
+    # Para garantir que o servidor nao ficara travado se muitos medicos/pacientes estiverem esperando
+    # precisamos de pelo menos max(medicos, pacientes) + 1 threads, o que garante que sempre havera
+    # pelo menos uma thread disponivel para um novo cliente conectar-se
+    num_threads = max(total_pacientes, total_medicos) + 1
+
     parada = Event()
-    server = grpc.server(
-        futures.ThreadPoolExecutor(max_workers=max(total_pacientes, total_medicos) + 1)
-    )
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=num_threads))
     ambulatorio_pb2_grpc.add_AmbulatorioServiceServicer_to_server(
         AmbulatorioServicer(total_pacientes, total_medicos, parada), server
     )

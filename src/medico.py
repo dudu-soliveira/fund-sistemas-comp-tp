@@ -158,7 +158,10 @@ def parse_args() -> Tuple[tipo_porto, tipo_ident, tipo_tempo, tipo_ender, tipo_p
 
 
 def serve(id: tipo_ident, porta: tipo_porto) -> grpc.Server:
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
+    # Inicia o servidor do consultorio com apenas uma thread, visto que nao
+    # deve ser possivel acontecer mais de uma consulta simultaneamente
+    num_threads = 1
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=num_threads))
     consultorio_pb2_grpc.add_ConsultorioServiceServicer_to_server(
         ConsultorioServicer(id), server
     )

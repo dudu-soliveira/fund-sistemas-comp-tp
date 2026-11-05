@@ -36,6 +36,7 @@ class Server:
         self.porta = porta
 
     def connect(self) -> int:
+        # Sinaliza ao servidor do ambulatorio que deve-se comecar o termino
         with grpc.insecure_channel(f"{self.endereco}:{self.porta}") as channel:
             stub = AmbulatorioServiceStub(channel)
             req = TerminoRequest()

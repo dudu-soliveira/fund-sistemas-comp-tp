@@ -54,6 +54,7 @@ class Paciente:
         self.ambulatorio = ambulatorio
 
     def procuraMedico(self) -> bool:
+        # Conecta-se ao ambulatorio e espera ser chamado
         with self.ambulatorio.connect() as channel:
             stub = ambulatorio_pb2_grpc.AmbulatorioServiceStub(channel)
 
@@ -63,13 +64,15 @@ class Paciente:
             porta_consultorio = res.porto
             tstamp_msg("PPMR(%s:%d)" % (end_consultorio, porta_consultorio))
 
+            # Termina se o ambulatorio tiver sido fechado
             if porta_consultorio == 0:
-                return False
+                exit()
 
             self.consultorio = Server(end_consultorio, porta_consultorio)
             return True
 
     def consulta(self) -> None:
+        # Apos ser chamado por um medico, se direciona para o consultorio
         with self.consultorio.connect() as channel:
             stub = consultorio_pb2_grpc.ConsultorioServiceStub(channel)
 
@@ -86,9 +89,7 @@ def main() -> None:
     ambulatorio = Server(end_amb, porta_amb)
     paciente = Paciente(id, problema, ambulatorio)
 
-    if not paciente.procuraMedico():
-        return
-
+    paciente.procuraMedico()
     paciente.consulta()
 
 
