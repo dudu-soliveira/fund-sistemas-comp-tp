@@ -1,0 +1,40 @@
+~/Desktop$ ./tests/caso1/command.sh 
+Ambulatório: 2 cadeiras, 2 médicos, porto 9999
+Médico
+Paciente
+Fim do expediente
+~/Desktop$ cat amb.out
+  0.0: mytime started at Fri Nov 13 20:08:33 2026
+  0.0: AI(2,2)@9999
+  0.0: ARM(99.1) @ %5B::1%5D:9991 = 0
+  0.0: ACPI(99.1)
+  0.0: ACPE(99.1)
+  1.0: APMI( 6.1)
+  1.0: APMR( 6.1) -> M(99.1) @ %5B::1%5D:9991
+  1.1: ACPR(99.1) -> P( 6.1)
+  3.1: ACPI(99.1)
+  3.1: ACPE(99.1)
+  6.0: ATEI
+  6.0: ACPR(99.1) -> P( 0.0)
+  7.0: ATER -> 1
+~/Desktop$ cat med1.out 
+  0.0: mytime started at Fri Nov 13 20:08:33 2026
+  0.0: MI(99.1) x 2.0 @ 9991 = 0
+  0.0: MCPI
+  1.0: CI( 6.1,enxaqueca)
+  1.1: MCPR ->  6.1
+  1.1: MAI( 6.1,enxaqueca)
+  3.1: MAF
+  3.1: MCPI
+  3.1: CR( 6.1,99.1)
+  6.0: MCPR ->  0.0
+  6.0: MT 
+~/Desktop$ cat pac1.out 
+  0.0: mytime started at Fri Nov 13 20:08:34 2026
+  0.0: PI( 6.1,enxaqueca)
+  0.0: PPMR(%5B::1%5D:9991)
+  2.1: PT -> 99.1
+~/Desktop$ cat fim.out 
+  0.0: mytime started at Fri Nov 13 20:08:39 2026
+  0.0: FE(localhost,9999)
+  1.0: FE -> 1
